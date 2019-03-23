@@ -24,6 +24,8 @@ export class RubiksCube {
     
     public _materials: THREE.Material[];
 
+    public _didFinish = true;
+
     constructor(view: HTMLElement) {
 
         this.view = view;
@@ -65,8 +67,14 @@ export class RubiksCube {
     }
 
     public rotateFront(clockwize: boolean) : void {
-        const coefficient = clockwize ? 1 : -1;
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
+        const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
+            // get all front block
             return value.position.z > THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
@@ -74,8 +82,14 @@ export class RubiksCube {
     }
 
     public rotateBack(clockwize: boolean) : void {
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
+            // get all back block
             return value.position.z < -THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
@@ -83,8 +97,14 @@ export class RubiksCube {
     }
 
     public rotateUp(clockwize: boolean) : void {
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
+            // get all up block
             return value.position.y > THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
@@ -92,8 +112,14 @@ export class RubiksCube {
     }
 
     public rotateDown(clockwize: boolean) : void {
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
         const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
+            // get all down block
             return value.position.y < -THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
@@ -101,8 +127,14 @@ export class RubiksCube {
     }
 
     public rotateLeft(clockwize: boolean) : void {
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
+             // get all left block
             return value.position.x < -THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
@@ -110,8 +142,14 @@ export class RubiksCube {
     }
 
     public rotateRight(clockwize: boolean) : void {
+        if (this._didFinish) {
+            this._didFinish = false;
+        } else {
+            return;
+        }
         const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
+             // get right down block
             return value.position.x > THRESHOLD;
         }, (value, ratio)=>{
             this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
@@ -138,8 +176,23 @@ export class RubiksCube {
         }
     }
 
+    private _polling() {
+        const clouse = () => {
+            if (!this._didFinish) {
+                setTimeout(clouse, 100);
+            }
+        }
+        setTimeout(clouse, 100);
+    }
+
     // rotation core function by using high level function
     private _rotate(filter:(value:THREE.Object3D)=>boolean, rotation:(value:THREE.Object3D, ratio:number)=>void) {
+        if (this._didFinish === false) {
+            this._polling();
+        }
+        // start a new thread
+        this._didFinish = false;
+
         const objects = this.rubiksCube.children.filter(filter);
         this._anmate(500, (ratio:number) => {
             for (const object of objects) {
@@ -205,6 +258,7 @@ export class RubiksCube {
         // check if diff bigger than during
         if (currentTimestamp - startTimestamp >= during) {
             cancelAnimationFrame(handler);
+            this._didFinish = true;
         }
     }
 
@@ -243,17 +297,17 @@ export class RubiksCube {
         if (this._materials == null) {
             this._materials = [
                 // orange
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xF76102)}),
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xF76102), roughness: 0.8}),
                 // red
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x920702)}),
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x920702), roughness: 0.8}),
                 // yellow
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFC05)}), 
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFC05), roughness: 0.8}), 
                 // white
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFFFF)}),
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFFFF), roughness: 0.8}),
                 // green
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x179505)}),
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x179505), roughness: 0.8}),
                 // blue
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x1A11FF)})
+                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x1A11FF), roughness: 0.8})
             ];
         }
         return this._materials;

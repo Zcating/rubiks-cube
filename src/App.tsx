@@ -19,15 +19,22 @@ class App extends React.Component {
     return (
       <div className="App">
         <div id="cube-container" className="CubeContainer"/>
-        <div className="CubeButtons">
+        <footer className="CubeButtons">
           <button onClick={this.rotateFront}>F</button>
           <button onClick={this.rotateUp}>U</button>
           <button onClick={this.rotateLeft}>L</button>
           <button onClick={this.rotateRight}>R</button>
           <button onClick={this.rotateDown}>D</button>
           <button onClick={this.rotateBack}>B</button>
+          <button onClick={this.rotateFront}>F'</button>
+          <button onClick={this.rotateUp}>U'</button>
+          <button onClick={this.rotateLeft}>L'</button>
+          <button onClick={this.rotateRight}>R'</button>
+          <button onClick={this.rotateDown}>D'</button>
+          <button onClick={this.rotateBack}>B'</button>
           <button onClick={this.reset}>reset</button>
-        </div>
+        </footer>
+
       </div>
     );
   }
@@ -35,22 +42,28 @@ class App extends React.Component {
     this.rubiksCube.reset();
   }
   private rotateFront = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateFront(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateFront(textContent === 'F');
   }
   private rotateUp = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateUp(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateUp(textContent === 'U');
   }
   private rotateLeft = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateLeft(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateLeft(textContent === 'L');
   }
   private rotateRight = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateRight(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateRight(textContent === 'R');
   }
   private rotateDown = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateDown(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateDown(textContent === 'D');
   }
   private rotateBack = (event:React.MouseEvent) => {
-    this.rubiksCube.rotateBack(true);
+    const textContent = (event.target as HTMLElement).textContent;
+    this.rubiksCube.rotateBack(textContent === 'B');
   }
 }
 

@@ -15,12 +15,23 @@
 
 .CubeButtons {
   position: absolute;
-  left: 10px;
-  top: 10px;
-  width: 100px;
-  height: 100px;
+  bottom: 0;
+  height: 10%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
 }
 
 .CubeButtons button {
+  width: 60px;
+  font-size: 20px;
+  border-radius: 5px;
+  border: 1px solid black;
+  background: #a7d129;
+}
 
+.CubeButtons button+button {
+  margin-left: 20px;
 }
