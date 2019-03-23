@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three-orbitcontrols-ts';
 
 
+const THRESHOLD = 0.5;
 const PI_2 = Math.PI / 2;
 // const PI_4 = Math.PI / 4;
 // const SQRT_2 = Math.sqrt(2);
@@ -23,57 +24,14 @@ export class RubiksCube {
     
     public _materials: THREE.Material[];
 
-    // private _xCube : THREE.Mesh;
-    // private _nagxCube : THREE.Mesh;
-    
-    // private _yCube : THREE.Mesh;
-    // private _nagyCube : THREE.Mesh;
-
-    // private _zCube : THREE.Mesh;
-    // private _nagzCube : THREE.Mesh;
-    
-    // private radPerFrame = Math.PI / 120;
-
     constructor(view: HTMLElement) {
 
         this.view = view;
 
         this.rubiksCube = new THREE.Group();
-
-
-        for (let x = -1; x <= 1; x++) {
-            for(let y = -1; y <= 1; y++) {
-                for(let z = -1; z <= 1; z++) {
-                    if (x === 0 && y === 0 && z === 0) {
-                        continue;
-                    }
-                    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-                    const cube = new THREE.Mesh( geometry, this.materials );
-                    cube.position.set(x, y, z);
-                    this.rubiksCube.add(cube);
-
-                    if (x === 1 && y === 0  && z === 0) {
-                        // this._xCube = cube;
-                    } else if (x === -1 && y === 0  && z === 0) {
-                        // this._nagxCube = cube;
-                    } else if (x === 0 && y === 1  && z === 0) {
-                        // this._yCube = cube;
-                    } else if (x === 0 && y === -1  && z === 0) {
-                        // this._nagyCube = cube;
-                    } else if (x === 0 && y === 0  && z === 1) {
-                        // this._zCube = cube;
-                    } else if (x === 1 && y === 0  && z === -1) {
-                        // this._nagzCube = cube;
-                    } 
-                }
-            }
-        }
-        // tslint:disable-next-line:no-console
-        console.log(this.rubiksCube.children.length);
+        this._generateRubiksCube();
 
         this.scene.add(this.rubiksCube);
-        
-        this.scene.add(new THREE.AxesHelper( 5 ));
 
         // 2 light to show all faces
         const dirLight = new THREE.DirectionalLight(0xffffff, 3);
@@ -97,79 +55,102 @@ export class RubiksCube {
             this._render3D();
         });
         this.orbitControls.addEventListener('change', this._render3D.bind(this));
+
         this._render3D();
     }
 
-    // tslint:disable-next-line:no-empty
-    public rotateFront() : void {
-        const objects: THREE.Mesh[] = [];
-        this.rubiksCube.traverse((object:THREE.Object3D)=>{
-            const mesh = (object as THREE.Mesh);
-            if (mesh.position.z > 0) {
-                objects.push(mesh);
-            }
+    public reset() {
+        this._generateRubiksCube();
+        this._render3D();
+    }
+
+    public rotateFront(clockwize: boolean) : void {
+        const coefficient = clockwize ? 1 : -1;
+        this._rotate((value)=>{
+            return value.position.z > THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
         });
+    }
+
+    public rotateBack(clockwize: boolean) : void {
+        const coefficient = clockwize ? 1 : -1;
+        this._rotate((value)=>{
+            return value.position.z < -THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
+        });
+    }
+
+    public rotateUp(clockwize: boolean) : void {
+        const coefficient = clockwize ? 1 : -1;
+        this._rotate((value)=>{
+            return value.position.y > THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
+        });
+    }
+
+    public rotateDown(clockwize: boolean) : void {
+        const coefficient = clockwize ? -1 : 1;
+        this._rotate((value)=>{
+            return value.position.y < -THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
+        });
+    }
+
+    public rotateLeft(clockwize: boolean) : void {
+        const coefficient = clockwize ? 1 : -1;
+        this._rotate((value)=>{
+            return value.position.x < -THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
+        });
+    }
+
+    public rotateRight(clockwize: boolean) : void {
+        const coefficient = clockwize ? -1 : 1;
+        this._rotate((value)=>{
+            return value.position.x > THRESHOLD;
+        }, (value, ratio)=>{
+            this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
+        });
+    }
+
+    // private
+
+    private _generateRubiksCube() {
+        this.rubiksCube.remove(...this.rubiksCube.children);
+
+        for (let x = -1; x <= 1; x++) {
+            for(let y = -1; y <= 1; y++) {
+                for(let z = -1; z <= 1; z++) {
+                    if (x === 0 && y === 0 && z === 0) {
+                        continue;
+                    }
+                    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+                    const cube = new THREE.Mesh( geometry, this.materials );
+                    cube.position.set(x, y, z);
+                    this.rubiksCube.add(cube);
+                }
+            }
+        }
+    }
+
+    // rotation core function by using high level function
+    private _rotate(filter:(value:THREE.Object3D)=>boolean, rotation:(value:THREE.Object3D, ratio:number)=>void) {
+        const objects = this.rubiksCube.children.filter(filter);
         this._anmate(500, (ratio:number) => {
             for (const object of objects) {
-                this.rotateZ(object, ratio * PI_2);
+                rotation(object, ratio);
             }
             this._render3D();
         });
     }
 
-    // tslint:disable-next-line:no-empty
-    public rotateUp() : void {
-        const objects: THREE.Mesh[] = [];
-        this.rubiksCube.traverse((object:THREE.Object3D)=>{
-            const mesh = (object as THREE.Mesh);
-            if (mesh.position.y > 0) {
-                objects.push(mesh);
-            }
-        });
-        this._anmate(500, (ratio:number) => {
-            for (const object of objects) {
-                this.rotateY(object, ratio * PI_2);
-            }
-            this._render3D();
-        });
-        // this._animateRotate(objects, 0, this._rotateY);
-    }
-
-    // tslint:disable-next-line:no-empty
-    public rotateLeft() : void {
-        const objects: THREE.Mesh[] = [];
-        this.rubiksCube.traverse((object:THREE.Object3D)=>{
-            const mesh = (object as THREE.Mesh);
-            if (mesh.position.x < 0) {
-                objects.push(mesh);
-            }
-        });
-        this._anmate(500, (ratio:number) => {
-            for (const object of objects) {
-                this.rotateX(object, -ratio * PI_2);
-            }
-            this._render3D();
-        });
-    }
-
-    // tslint:disable-next-line:no-empty
-    public rotateRight() : void {
-        const objects: THREE.Mesh[] = [];
-        this.rubiksCube.traverse((object:THREE.Object3D)=>{
-            const mesh = (object as THREE.Mesh);
-            if (mesh.position.x > 0) {
-                objects.push(mesh);
-            }
-        });
-        this._anmate(1000, (ratio:number) => {
-            for (const object of objects) {
-                this.rotateX(object, ratio * PI_2);
-            }
-            this._render3D();
-        });
-    }
-
-    private rotateX(object:THREE.Mesh, rad:number) {
+    // rotation around X axis 
+    private _rotateAroundAxisX(object:THREE.Object3D, rad:number) {
         const y = object.position.y;
         const z = object.position.z;
         const quaternion = new THREE.Quaternion();
@@ -179,17 +160,17 @@ export class RubiksCube {
         object.position.z = Math.cos(rad)*z+Math.sin(rad)*y;
     }
 
-    private rotateY(object:THREE.Mesh, rad:number) {
+    private _rotateAroundAxisY(object:THREE.Object3D, rad:number) {
         const x = object.position.x;
         const z = object.position.z;
         const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), rad);
+        quaternion.setFromAxisAngle( new THREE.Vector3( 0, -1, 0 ), rad);
         object.quaternion.premultiply( quaternion );
         object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
         object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
     }
 
-    private rotateZ(object:THREE.Mesh, rad:number) {
+    private _rotateAroundAxisZ(object:THREE.Object3D, rad:number) {
         const x = object.position.x;
         const y = object.position.y;
         const quaternion = new THREE.Quaternion();
@@ -199,7 +180,8 @@ export class RubiksCube {
         object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
     }
 
-    // PI / 2
+
+    // animate the rotate
     // during : ms 
     private _anmate(during: number | 500, animating: (ratio:number)=>void) {
         requestAnimationFrame((timestamp:number)=>{
