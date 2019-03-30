@@ -22,9 +22,13 @@ export class RubiksCube {
     
     public rubiksCube: THREE.Group; 
     
-    public _materials: THREE.Material[];
+    private _materials: THREE.Material[];
 
-    public _didFinish = true;
+    private _didFinish = true;
+
+    private _operationQueue = ([] as string[]);
+
+    private _isRunning = false;
 
     constructor(view: HTMLElement) {
 
@@ -62,16 +66,16 @@ export class RubiksCube {
     }
 
     public reset() {
+        // running state can't reset. 
+        if (this._isRunning) {
+            return;
+        }
         this._generateRubiksCube();
         this._render3D();
     }
 
-    public rotateFront(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+
+    public rotateFront(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
             // get all front block
@@ -81,27 +85,17 @@ export class RubiksCube {
         });
     }
 
-    public rotateBack(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+    public rotateBack(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
             // get all back block
             return value.position.z < -THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
+            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2 * times);
         });
     }
 
-    public rotateUp(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+    public rotateUp(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
             // get all up block
@@ -111,12 +105,7 @@ export class RubiksCube {
         });
     }
 
-    public rotateDown(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+    public rotateDown(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
             // get all down block
@@ -126,12 +115,7 @@ export class RubiksCube {
         });
     }
 
-    public rotateLeft(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+    public rotateLeft(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? 1 : -1;
         this._rotate((value)=>{
              // get all left block
@@ -141,12 +125,7 @@ export class RubiksCube {
         });
     }
 
-    public rotateRight(clockwize: boolean) : void {
-        if (this._didFinish) {
-            this._didFinish = false;
-        } else {
-            return;
-        }
+    public rotateRight(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? -1 : 1;
         this._rotate((value)=>{
              // get right down block
@@ -155,6 +134,125 @@ export class RubiksCube {
             this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
         });
     }
+
+
+    /**
+     * operate
+     */
+    /**
+     * startOperationQueue
+     */
+    public startAOperationQueue(operationQueue:string[]) {
+        if (this._isRunning) {
+            return;
+        }
+        this._operationQueue = operationQueue;
+        this.doingOperation();
+    }
+
+    public operate(operationChar: string) {
+        if (operationChar === null) {
+            return;
+        }
+        this._operationQueue.push(operationChar);
+        this.doingOperation();
+    }
+
+    /**
+     * doingOperation
+     */
+    public doingOperation() {
+        if (this._isRunning) {
+            return;
+        }
+        this._isRunning = true;
+
+        const handler = setInterval(()=>{
+            const operationChar = this._operationQueue[0];
+            if(operationChar === undefined) {
+                clearInterval(handler);
+                this._isRunning = false;
+                return;
+            }
+            switch (operationChar) {
+                case 'R':
+                    this.rotateRight(true);
+                    break;
+                case 'R2':
+                    this.rotateRight(true, 2);
+                    break;
+                case 'R\'':
+                    this.rotateRight(false);
+                    break;
+                case 'R\'2':
+                    this.rotateRight(false, 2);
+                    break;
+                case 'L':
+                    this.rotateLeft(true); 
+                    break;
+                case 'L2':
+                    this.rotateLeft(true, 2); 
+                    break;
+                case 'L\'':
+                    this.rotateLeft(false);
+                    break;
+                case 'L\'2':
+                    this.rotateLeft(false, 2); 
+                    break;
+                case 'U':
+                    this.rotateUp(true);
+                    break;
+                case 'U2':
+                    this.rotateUp(true); 
+                    break;
+                case 'U\'':
+                    this.rotateUp(false);
+                    break;
+                case 'U\'2':
+                    this.rotateUp(false, 2); 
+                    break;
+                case 'F':
+                    this.rotateFront(true);
+                    break;
+                case 'F2':
+                    this.rotateFront(true, 2); 
+                    break;
+                case 'F\'':
+                    this.rotateFront(false);
+                    break;
+                case 'F\'2':
+                    this.rotateFront(false, 2); 
+                    break;
+                case 'D':
+                    this.rotateDown(true);
+                    break;
+                case 'D2':
+                    this.rotateDown(true, 2); 
+                    break;
+                case 'D\'':
+                    this.rotateDown(false);
+                    break;
+                case 'D\'2':
+                    this.rotateDown(false, 2); 
+                    break;
+                case 'B':
+                    this.rotateBack(true);
+                    break;
+                case 'B2':
+                    this.rotateBack(true, 2); 
+                    break;
+                case 'B\'':
+                    this.rotateBack(false);
+                    break;
+                case 'B\'2':
+                    this.rotateBack(false, 2); 
+                    break;
+                default:
+                    break;
+            }
+            this._operationQueue.splice(0, 1);
+        }, 800);
+    }    
 
     // private
 
@@ -176,21 +274,13 @@ export class RubiksCube {
         }
     }
 
-    private _polling() {
-        const clouse = () => {
-            if (!this._didFinish) {
-                setTimeout(clouse, 100);
-            }
-        }
-        setTimeout(clouse, 100);
-    }
-
     // rotation core function by using high level function
     private _rotate(filter:(value:THREE.Object3D)=>boolean, rotation:(value:THREE.Object3D, ratio:number)=>void) {
-        if (this._didFinish === false) {
-            this._polling();
-        }
-        // start a new thread
+        // test if current animation do finish;
+        if (!this._didFinish) {
+            return;
+        } 
+        // start next animation.
         this._didFinish = false;
 
         const objects = this.rubiksCube.children.filter(filter);
@@ -207,28 +297,30 @@ export class RubiksCube {
         const y = object.position.y;
         const z = object.position.z;
         const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle( new THREE.Vector3( 1, 0, 0 ), rad );
-        object.quaternion.premultiply( quaternion );
-        object.position.y = Math.cos(rad)*y-Math.sin(rad)*z;
-        object.position.z = Math.cos(rad)*z+Math.sin(rad)*y;
+        quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), rad);
+        object.quaternion.premultiply(quaternion);
+        object.position.y = Math.cos(rad) * y - Math.sin(rad) * z;
+        object.position.z = Math.cos(rad) * z + Math.sin(rad) * y;
     }
 
+    // rotation around Y axis 
     private _rotateAroundAxisY(object:THREE.Object3D, rad:number) {
         const x = object.position.x;
         const z = object.position.z;
         const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle( new THREE.Vector3( 0, -1, 0 ), rad);
-        object.quaternion.premultiply( quaternion );
+        quaternion.setFromAxisAngle(new THREE.Vector3( 0, -1, 0 ), rad);
+        object.quaternion.premultiply(quaternion);
         object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
         object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
     }
 
+    // rotation around Z axis 
     private _rotateAroundAxisZ(object:THREE.Object3D, rad:number) {
         const x = object.position.x;
         const y = object.position.y;
         const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), rad );
-        object.quaternion.premultiply( quaternion );
+        quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), rad);
+        object.quaternion.premultiply(quaternion);
         object.position.x = Math.cos(rad) * x - Math.sin(rad) * y;
         object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
     }
@@ -241,14 +333,18 @@ export class RubiksCube {
             this._animationCore(during, timestamp, timestamp, timestamp, animating);
         });
     }
+
     // the animate core function
     private _animationCore(during:number, startTimestamp:number, previousTimestamp:number,currentTimestamp:number, animating: (ratio:number)=>void) {
-        // check if diff bigger than during
+        // check if diff bigger than during, and correct the timestamp
         const correction = currentTimestamp - startTimestamp >= during ?(startTimestamp + during) : currentTimestamp;
 
+        // get the diff of contiguous frames
         const diff = correction - previousTimestamp;
 
+        // run the animating clouse
         animating(diff / during);
+
         // run animation frame
         const handler = requestAnimationFrame((timestamp:number) => {
             this._animationCore(during, startTimestamp, currentTimestamp, timestamp, animating);
@@ -273,12 +369,15 @@ export class RubiksCube {
         canvas.height = 256;
         const context = canvas.getContext('2d');
         if (context != null) {
-            const colorString = '#' + color.toString(16);
+            // first use black draw into the background
             context.fillStyle = '#000000';
             context.fillRect(0, 0, 256, 256);
             context.rect(20, 20, 216, 216);
             context.lineJoin = 'round';
             context.lineWidth = 10;
+
+            // then use the color draw into the background
+            const colorString = '#' + color.toString(16);
             context.fillStyle = colorString;
             context.strokeStyle = colorString;
             context.stroke();

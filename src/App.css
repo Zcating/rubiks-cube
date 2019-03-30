@@ -13,19 +13,29 @@
   background: black;
 }
 
+#steps-content {
+  position: absolute;
+  text-align: center;
+  left: 0;
+  right: 0;
+  height: 10%;
+  bottom: 11%;
+  color: aliceblue;
+}
 .CubeButtons {
+  padding: 0 16px;
   position: absolute;
   bottom: 0;
   height: 10%;
-  width: 100%;
+  left: 0;
+  right: 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  
 }
 
 .CubeButtons button {
-  width: 60px;
   font-size: 20px;
   border-radius: 5px;
   border: 1px solid black;
