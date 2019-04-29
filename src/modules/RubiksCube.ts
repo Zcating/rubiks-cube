@@ -392,7 +392,7 @@ export class RubiksCube {
 
     // getter & setter
     
-    public get materials() : THREE.Material[] {
+    private get materials() : THREE.Material[] {
         if (this._materials == null) {
             this._materials = [
                 // orange
@@ -428,6 +428,7 @@ export class RubiksCube {
     private get camera() : THREE.PerspectiveCamera {
         if (this._camera == null) {
             this._camera = new THREE.PerspectiveCamera(60, this.view.offsetWidth / this.view.offsetHeight, 0.01, 2000);
+            this._camera.position.x = 5;
             this._camera.position.z = 10;
             this._camera.lookAt(new THREE.Vector3(0, 0, 0));
         }
