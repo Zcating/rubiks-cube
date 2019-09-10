@@ -1,82 +1,88 @@
-/* tslint:disable:no-unused-variable */
-import * as THREE from 'three';
-import { OrbitControls } from 'three-orbitcontrols-ts';
-
+import * as BABYLON from 'babylonjs';
 
 const THRESHOLD = 0.5;
 const PI_2 = Math.PI / 2;
 // const PI_4 = Math.PI / 4;
 // const SQRT_2 = Math.sqrt(2);
 
-export class RubiksCube {
-    public view: HTMLElement;
+export class RubiksCubeViewer {
 
-    public scene = new THREE.Scene();
-  
-    public _renderer: THREE.WebGLRenderer;
-  
-    public _camera: THREE.PerspectiveCamera;
+    scene: BABYLON.Scene;
+    engine: BABYLON.Engine;
+    camera: BABYLON.ArcRotateCamera;
+    light: BABYLON.HemisphericLight;
+    cubes: BABYLON.Mesh[] = [];
 
-    public _orbitControls: OrbitControls;
-  
-    
-    public rubiksCube: THREE.Group; 
-    
-    private _materials: THREE.Material[];
+    private _multiMaterial?: BABYLON.MultiMaterial;
 
-    private _didFinish = true;
+    // private _didFinish = true;
 
-    private _operationQueue = ([] as string[]);
+    private _operationQueue: string[] = [];
 
     private _isRunning = false;
 
-    constructor(view: HTMLElement) {
+    private get multiMaterial() : BABYLON.MultiMaterial {
+        if (!this._multiMaterial) {
+            this._multiMaterial = new BABYLON.MultiMaterial('multi', this.scene);
 
-        this.view = view;
+            this._multiMaterial.subMaterials.push(
+                // orange 0xF76102
+                new BABYLON.StandardMaterial('orange', this.scene),
+                // red 0x920702
+                new BABYLON.StandardMaterial('red', this.scene),
+                // yellow 0xFFFC05
+                new BABYLON.StandardMaterial('yellow', this.scene),
+                // white 0xFFFFFF
+                new BABYLON.StandardMaterial('white', this.scene),
+                // green 0x179505
+                new BABYLON.StandardMaterial('green', this.scene),
+                // blue 0x1A11FF
+                new BABYLON.StandardMaterial('blue', this.scene),
+            );
+            const subMaterials = this._multiMaterial.subMaterials as BABYLON.StandardMaterial[];
+            subMaterials[0]!.diffuseTexture = this.colorTexture(0xF76102);
+            subMaterials[1]!.diffuseTexture = this.colorTexture(0x920702);
+            subMaterials[2]!.diffuseTexture = this.colorTexture(0xFFFC05);
+            subMaterials[3]!.diffuseTexture = this.colorTexture(0xFFFFFF);
+            subMaterials[4]!.diffuseTexture = this.colorTexture(0x179505);
+            subMaterials[5]!.diffuseTexture = this.colorTexture(0x1A11FF);
+        }
+        return this._multiMaterial;
+    }
 
-        this.rubiksCube = new THREE.Group();
+    constructor(canvas: HTMLCanvasElement) {
+        this.engine = new BABYLON.Engine(canvas, true, {}, true);
+        this.scene = new BABYLON.Scene(this.engine);
+        this.camera = new BABYLON.ArcRotateCamera('camera', Math.PI / 4, Math.PI / 4, 2, BABYLON.Vector3.Zero(), this.scene);
+        this.camera.lowerRadiusLimit = 0.01;
+        this.camera.upperRadiusLimit = 10;
+
         this._generateRubiksCube();
 
-        this.scene.add(this.rubiksCube);
+        this.light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, 1), this.scene);
 
-        // 2 light to show all faces
-        const dirLight = new THREE.DirectionalLight(0xffffff, 3);
-        dirLight.color.setHSL(0.1, 1, 0.95);
-        dirLight.position.set(-1, -1, -1);
-        dirLight.position.multiplyScalar(30);
-        this.scene.add(dirLight);
-    
-        const dirLight1 = new THREE.DirectionalLight(0xffffff, 2);
-        dirLight1.color.setHSL(0.1, 1, 0.95);
-        dirLight1.position.set(1, 1, 1);
-        dirLight1.position.multiplyScalar(30);
-        this.scene.add(dirLight1);
-    
-        this.view.appendChild(this.renderer.domElement);
-    
-        window.addEventListener('resize', (target) => {
-            this.renderer.setSize(this.view.offsetWidth, this.view.offsetHeight);
-            this.camera.aspect = this.view.offsetWidth / this.view.offsetHeight;
-            this.camera.updateProjectionMatrix();
-            this._render3D();
+        this.engine.runRenderLoop(() => {
+            this.scene.render();
         });
-        this.orbitControls.addEventListener('change', this._render3D.bind(this));
 
-        this._render3D();
+        window.addEventListener('resize', this.resizeFn);
+    }
+
+    destroy() {
+        window.removeEventListener('resize', this.resizeFn);
     }
 
     public reset() {
-        // running state can't reset. 
+        // running state can't reset.
         if (this._isRunning) {
             return;
         }
         this._generateRubiksCube();
-        this._render3D();
     }
 
 
-    public rotateFront(clockwize: boolean, times: number = 1) : void {
-        const coefficient = clockwize ? -1 : 1;
+    public rotateFront(clockwise: boolean, times: number = 1) : void {
+        const coefficient = clockwise ? -1 : 1;
         this._rotate((value)=>{
             // get all front block
             return value.position.z > THRESHOLD;
@@ -188,146 +194,152 @@ export class RubiksCube {
                     this.rotateRight(false, 2);
                     break;
                 case 'L':
-                    this.rotateLeft(true); 
+                    this.rotateLeft(true);
                     break;
                 case 'L2':
-                    this.rotateLeft(true, 2); 
+                    this.rotateLeft(true, 2);
                     break;
                 case 'L\'':
                     this.rotateLeft(false);
                     break;
                 case 'L\'2':
-                    this.rotateLeft(false, 2); 
+                    this.rotateLeft(false, 2);
                     break;
                 case 'U':
                     this.rotateUp(true);
                     break;
                 case 'U2':
-                    this.rotateUp(true); 
+                    this.rotateUp(true);
                     break;
                 case 'U\'':
                     this.rotateUp(false);
                     break;
                 case 'U\'2':
-                    this.rotateUp(false, 2); 
+                    this.rotateUp(false, 2);
                     break;
                 case 'F':
                     this.rotateFront(true);
                     break;
                 case 'F2':
-                    this.rotateFront(true, 2); 
+                    this.rotateFront(true, 2);
                     break;
                 case 'F\'':
                     this.rotateFront(false);
                     break;
                 case 'F\'2':
-                    this.rotateFront(false, 2); 
+                    this.rotateFront(false, 2);
                     break;
                 case 'D':
                     this.rotateDown(true);
                     break;
                 case 'D2':
-                    this.rotateDown(true, 2); 
+                    this.rotateDown(true, 2);
                     break;
                 case 'D\'':
                     this.rotateDown(false);
                     break;
                 case 'D\'2':
-                    this.rotateDown(false, 2); 
+                    this.rotateDown(false, 2);
                     break;
                 case 'B':
                     this.rotateBack(true);
                     break;
                 case 'B2':
-                    this.rotateBack(true, 2); 
+                    this.rotateBack(true, 2);
                     break;
                 case 'B\'':
                     this.rotateBack(false);
                     break;
                 case 'B\'2':
-                    this.rotateBack(false, 2); 
+                    this.rotateBack(false, 2);
                     break;
                 default:
                     break;
             }
             this._operationQueue.splice(0, 1);
         }, 800);
-    }    
+    }
 
     // private
 
     private _generateRubiksCube() {
-        this.rubiksCube.remove(...this.rubiksCube.children);
-
         for (let x = -1; x <= 1; x++) {
             for(let y = -1; y <= 1; y++) {
                 for(let z = -1; z <= 1; z++) {
                     if (x === 0 && y === 0 && z === 0) {
                         continue;
                     }
-                    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-                    const cube = new THREE.Mesh( geometry, this.materials );
-                    cube.position.set(x, y, z);
-                    this.rubiksCube.add(cube);
+                    const box = BABYLON.Mesh.CreateBox('cube', 1, this.scene);
+                    box.material = this.multiMaterial;
+                    box.subMeshes = [];
+                    const verticesCount = box.getTotalVertices();
+                    box.subMeshes.push(new BABYLON.SubMesh(0, 0, verticesCount, 0, 6, box));
+                    box.subMeshes.push(new BABYLON.SubMesh(1, 1, verticesCount, 6, 6, box));
+                    box.subMeshes.push(new BABYLON.SubMesh(2, 2, verticesCount, 12, 6, box));
+                    box.subMeshes.push(new BABYLON.SubMesh(3, 3, verticesCount, 18, 6, box));
+                    box.subMeshes.push(new BABYLON.SubMesh(4, 4, verticesCount, 24, 6, box));
+                    box.subMeshes.push(new BABYLON.SubMesh(5, 5, verticesCount, 30, 6, box));
                 }
             }
         }
     }
 
     // rotation core function by using high level function
-    private _rotate(filter:(value:THREE.Object3D)=>boolean, rotation:(value:THREE.Object3D, ratio:number)=>void) {
+    private _rotate(filter:(value: BABYLON.Mesh) => boolean, rotation:(value: BABYLON.Mesh, ratio:number)=>void) {
         // test if current animation do finish;
-        if (!this._didFinish) {
-            return;
-        } 
-        // start next animation.
-        this._didFinish = false;
-
-        const objects = this.rubiksCube.children.filter(filter);
-        this._anmate(500, (ratio:number) => {
-            for (const object of objects) {
-                rotation(object, ratio);
-            }
-            this._render3D();
-        });
+        // if (!this._didFinish) {
+        //     return;
+        // }
+        // // start next animation.
+        // this._didFinish = false;
+        //
+        // const objects = this.rubiksCube.children.filter(filter);
+        // this._anmate(500, (ratio:number) => {
+        //     for (const object of objects) {
+        //         rotation(object, ratio);
+        //     }
+        //     this._render3D();
+        // });
     }
 
-    // rotation around X axis 
-    private _rotateAroundAxisX(object:THREE.Object3D, rad:number) {
-        const y = object.position.y;
-        const z = object.position.z;
-        const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), rad);
-        object.quaternion.premultiply(quaternion);
-        object.position.y = Math.cos(rad) * y - Math.sin(rad) * z;
-        object.position.z = Math.cos(rad) * z + Math.sin(rad) * y;
+    // rotation around X axis
+    private _rotateAroundAxisX(object: BABYLON.Mesh, rad:number) {
+        // const y = object.position.y;
+        // const z = object.position.z;
+        // const quaternion = new THREE.Quaternion();
+        // quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), rad);
+        // object.quaternion.premultiply(quaternion);
+        // object.position.y = Math.cos(rad) * y - Math.sin(rad) * z;
+        // object.position.z = Math.cos(rad) * z + Math.sin(rad) * y;
     }
 
-    // rotation around Y axis 
-    private _rotateAroundAxisY(object:THREE.Object3D, rad:number) {
-        const x = object.position.x;
-        const z = object.position.z;
-        const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle(new THREE.Vector3( 0, -1, 0 ), rad);
-        object.quaternion.premultiply(quaternion);
-        object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
-        object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
+    // rotation around Y axis
+    private _rotateAroundAxisY(object: BABYLON.Mesh, rad:number) {
+        // const x = object.position.x;
+        // const z = object.position.z;
+        // const quaternion = new BABYLON.Quaternion();
+        // quaternion.set(0 , -1, 0, rad);
+        // object
+        // object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
+        // object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
     }
 
-    // rotation around Z axis 
-    private _rotateAroundAxisZ(object:THREE.Object3D, rad:number) {
-        const x = object.position.x;
-        const y = object.position.y;
-        const quaternion = new THREE.Quaternion();
-        quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), rad);
-        object.quaternion.premultiply(quaternion);
-        object.position.x = Math.cos(rad) * x - Math.sin(rad) * y;
-        object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
+    // rotation around Z axis
+    private _rotateAroundAxisZ(object: BABYLON.Mesh, rad:number) {
+        // const x = object.position.x;
+        // const y = object.position.y;
+        //
+        // const quaternion = new BABYLON.Quaternion();
+        // quaternion.set()
+        // quaternion.setFromAxisAngle(new BABYLON.Vector3(0, 0, 1), rad);
+        // object.quaternion.premultiply(quaternion);
+        // object.position.x = Math.cos(rad) * x - Math.sin(rad) * y;
+        // object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
     }
 
 
     // animate the rotate
-    // during : ms 
+    // during : ms
     private _anmate(during: number | 500, animating: (ratio:number)=>void) {
         requestAnimationFrame((timestamp:number)=>{
             this._animationCore(during, timestamp, timestamp, timestamp, animating);
@@ -358,12 +370,8 @@ export class RubiksCube {
         }
     }
 
-    private _render3D() {
-        this.renderer.render(this.scene, this.camera);
-    }
 
-
-    private _colorTexture(color:number) : THREE.Texture {
+    private colorTexture(color:number) : BABYLON.Texture {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 256;
@@ -383,70 +391,15 @@ export class RubiksCube {
             context.stroke();
             context.fill();
         }
-        const texture = new THREE.Texture(canvas);
-        texture.needsUpdate = true;
-        return texture;
+        return new BABYLON.Texture(canvas.toDataURL(), this.scene);
     }
 
 
 
     // getter & setter
-    
-    private get materials() : THREE.Material[] {
-        if (this._materials == null) {
-            this._materials = [
-                // orange
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xF76102), roughness: 0.8}),
-                // red
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x920702), roughness: 0.8}),
-                // yellow
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFC05), roughness: 0.8}), 
-                // white
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0xFFFFFF), roughness: 0.8}),
-                // green
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x179505), roughness: 0.8}),
-                // blue
-                new THREE.MeshPhysicalMaterial({map: this._colorTexture(0x1A11FF), roughness: 0.8})
-            ];
-        }
-        return this._materials;
-    }
 
 
-    private get renderer() : THREE.WebGLRenderer {
-        if (this._renderer == null) {
-            this._renderer = new THREE.WebGLRenderer({ antialias: true });
-            this._renderer.setClearColor(0x555555);
-            this._renderer.setSize(this.view.offsetWidth, this.view.offsetHeight);
-            this._renderer.shadowMap.enabled = true;
-            this._renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            this._renderer.setPixelRatio(window.devicePixelRatio);
-        }
-        return this._renderer;  
-    }
-
-    private get camera() : THREE.PerspectiveCamera {
-        if (this._camera == null) {
-            this._camera = new THREE.PerspectiveCamera(60, this.view.offsetWidth / this.view.offsetHeight, 0.01, 2000);
-            this._camera.position.x = 5;
-            this._camera.position.z = 10;
-            this._camera.lookAt(new THREE.Vector3(0, 0, 0));
-        }
-        return this._camera;
-    }
-
-    private get orbitControls() : OrbitControls {
-        if (this._orbitControls == null) {
-          // tslint:disable-next-line:no-console
-          this._orbitControls = new OrbitControls(this.camera, this.view);
-          this._orbitControls.rotateSpeed = 0.7;
-          this._orbitControls.dampingFactor = 0.07;
-          this._orbitControls.minDistance = 0.3;
-          this._orbitControls.maxDistance = Infinity;
-          this._orbitControls.enablePan = true; 
-          this._orbitControls.enableZoom = true;
-          this._orbitControls.enabled = true;
-        }
-        return this._orbitControls;
+    private resizeFn = () => {
+        this.engine.resize();
     }
 }

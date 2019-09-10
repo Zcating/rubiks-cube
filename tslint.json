@@ -1,5 +1,9 @@
 {
-  "extends": ["tslint:recommended", "tslint-react", "tslint-config-prettier"],
+  "extends": [
+    "tslint:recommended",
+    "tslint-react",
+    "tslint-config-prettier"
+  ],
   "linterOptions": {
     "exclude": [
       "config/**/*.js",
@@ -8,12 +12,27 @@
     ]
   },
   "rules": {
-    "variable-name": [true, "check-format", "allow-leading-underscore"],
-    "interface-name": [false, "never-prefix"],
+    "variable-name": [
+      true,
+      "check-format",
+      "allow-leading-underscore"
+    ],
+    "interface-name": [
+      false,
+      "never-prefix"
+    ],
     "object-literal-sort-keys": false,
     "ordered-imports": false,
-    "indent": [true, "spaces", 4],
+    "indent": [
+      true,
+      "spaces",
+      4
+    ],
     "no-unused-variable": false,
-    "no-console": false
+    "no-console": false,
+    "member-access": [
+      false,
+      "check-accessor"
+    ]
   }
 }
