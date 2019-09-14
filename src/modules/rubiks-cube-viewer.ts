@@ -10,16 +10,20 @@ export class RubiksCubeViewer {
     scene: BABYLON.Scene;
     engine: BABYLON.Engine;
     camera: BABYLON.ArcRotateCamera;
-    light: BABYLON.HemisphericLight;
+    light1: BABYLON.HemisphericLight;
+    light2: BABYLON.HemisphericLight;
     cubes: BABYLON.Mesh[] = [];
+
+    // didFinish: boolean = false;
 
     private _multiMaterial?: BABYLON.MultiMaterial;
 
-    // private _didFinish = true;
+    private _didFinish = true;
 
     private _operationQueue: string[] = [];
 
     private _isRunning = false;
+
 
     private get multiMaterial() : BABYLON.MultiMaterial {
         if (!this._multiMaterial) {
@@ -40,26 +44,45 @@ export class RubiksCubeViewer {
                 new BABYLON.StandardMaterial('blue', this.scene),
             );
             const subMaterials = this._multiMaterial.subMaterials as BABYLON.StandardMaterial[];
-            subMaterials[0]!.diffuseTexture = this.colorTexture(0xF76102);
-            subMaterials[1]!.diffuseTexture = this.colorTexture(0x920702);
-            subMaterials[2]!.diffuseTexture = this.colorTexture(0xFFFC05);
-            subMaterials[3]!.diffuseTexture = this.colorTexture(0xFFFFFF);
-            subMaterials[4]!.diffuseTexture = this.colorTexture(0x179505);
-            subMaterials[5]!.diffuseTexture = this.colorTexture(0x1A11FF);
+            subMaterials[0]!.diffuseTexture = this.colorTexture(0x179505);
+            subMaterials[1]!.diffuseTexture = this.colorTexture(0x1A11FF);
+            subMaterials[2]!.diffuseTexture = this.colorTexture(0xF76102);
+            subMaterials[3]!.diffuseTexture = this.colorTexture(0x920702);
+            subMaterials[4]!.diffuseTexture = this.colorTexture(0xFFFC05);
+            subMaterials[5]!.diffuseTexture = this.colorTexture(0xFFFFFF);
         }
         return this._multiMaterial;
     }
 
-    constructor(canvas: HTMLCanvasElement) {
+    private resizeFn = () => {
+        this.engine.resize();
+    }
+
+    constructor(element: HTMLElement) {
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'absolute';
+        canvas.style.height = '100%';
+        canvas.style.width = '100%';
+        element.appendChild(canvas);
         this.engine = new BABYLON.Engine(canvas, true, {}, true);
         this.scene = new BABYLON.Scene(this.engine);
-        this.camera = new BABYLON.ArcRotateCamera('camera', Math.PI / 4, Math.PI / 4, 2, BABYLON.Vector3.Zero(), this.scene);
-        this.camera.lowerRadiusLimit = 0.01;
-        this.camera.upperRadiusLimit = 10;
+        this.scene.useRightHandedSystem = true;
+        this.camera = new BABYLON.ArcRotateCamera('camera', 0, 0, 10, BABYLON.Vector3.Zero(), this.scene);
+        this.camera.position = new BABYLON.Vector3(4, 4, 4);
+        this.camera.lowerRadiusLimit = 4;
+        this.camera.upperRadiusLimit = 20;
+        this.camera.useBouncingBehavior = false;
+        this.camera.attachControl(canvas);
+        this.camera.minZ = 0.001;
+        this.camera.wheelDeltaPercentage = 0.01;
+        this.camera.pinchDeltaPercentage = 0.01;
+        this.camera.wheelPrecision = 500;
+        this.camera.pinchPrecision = 500;
 
         this._generateRubiksCube();
 
-        this.light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, 1), this.scene);
+        this.light1 = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, 1), this.scene);
+        this.light2 = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 0, -1), this.scene);
 
         this.engine.runRenderLoop(() => {
             this.scene.render();
@@ -70,6 +93,8 @@ export class RubiksCubeViewer {
 
     destroy() {
         window.removeEventListener('resize', this.resizeFn);
+        this.engine.dispose();
+        this.scene.dispose();
     }
 
     public reset() {
@@ -87,7 +112,7 @@ export class RubiksCubeViewer {
             // get all front block
             return value.position.z > THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
+            RubiksCubeViewer._rotateAroundAxisZ(value, coefficient * ratio * PI_2);
         });
     }
 
@@ -97,7 +122,7 @@ export class RubiksCubeViewer {
             // get all back block
             return value.position.z < -THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisZ(value, coefficient * ratio * PI_2 * times);
+            RubiksCubeViewer._rotateAroundAxisZ(value, coefficient * ratio * PI_2 * times);
         });
     }
 
@@ -107,7 +132,7 @@ export class RubiksCubeViewer {
             // get all up block
             return value.position.y > THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
+            RubiksCubeViewer._rotateAroundAxisY(value, coefficient * ratio * PI_2);
         });
     }
 
@@ -117,7 +142,7 @@ export class RubiksCubeViewer {
             // get all down block
             return value.position.y < -THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisY(value, coefficient * ratio * PI_2);
+            RubiksCubeViewer._rotateAroundAxisY(value, coefficient * ratio * PI_2);
         });
     }
 
@@ -127,18 +152,26 @@ export class RubiksCubeViewer {
              // get all left block
             return value.position.x < -THRESHOLD;
         }, (value, ratio)=>{
-            this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
+            RubiksCubeViewer._rotateAroundAxisX(value, coefficient * ratio * PI_2);
         });
     }
 
     public rotateRight(clockwize: boolean, times: number = 1) : void {
         const coefficient = clockwize ? -1 : 1;
-        this._rotate((value)=>{
+
+        this._rotate((value) => {
              // get right down block
             return value.position.x > THRESHOLD;
-        }, (value, ratio)=>{
-            this._rotateAroundAxisX(value, coefficient * ratio * PI_2);
+        }, (value, ratio) => {
+            RubiksCubeViewer._rotateAroundAxisX(value, coefficient * ratio * PI_2);
         });
+
+        // const objects = this.cubes.filter((value) => value.position.x > THRESHOLD);
+        // objects.forEach((value) => {
+        //     const animation = new BABYLON.Animation('TEST', 'position.x', 10, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        //     this.scene.beginDirectAnimation(value, [animation], 0, 2 * 10, true);
+        // });
+        // const animation = new BABYLON.Animation('TEST', 'position', 10, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
     }
 
 
@@ -279,94 +312,10 @@ export class RubiksCubeViewer {
                     box.subMeshes.push(new BABYLON.SubMesh(3, 3, verticesCount, 18, 6, box));
                     box.subMeshes.push(new BABYLON.SubMesh(4, 4, verticesCount, 24, 6, box));
                     box.subMeshes.push(new BABYLON.SubMesh(5, 5, verticesCount, 30, 6, box));
+                    box.position.set(x, y, z);
+                    this.cubes.push(box);
                 }
             }
-        }
-    }
-
-    // rotation core function by using high level function
-    private _rotate(filter:(value: BABYLON.Mesh) => boolean, rotation:(value: BABYLON.Mesh, ratio:number)=>void) {
-        // test if current animation do finish;
-        // if (!this._didFinish) {
-        //     return;
-        // }
-        // // start next animation.
-        // this._didFinish = false;
-        //
-        // const objects = this.rubiksCube.children.filter(filter);
-        // this._anmate(500, (ratio:number) => {
-        //     for (const object of objects) {
-        //         rotation(object, ratio);
-        //     }
-        //     this._render3D();
-        // });
-    }
-
-    // rotation around X axis
-    private _rotateAroundAxisX(object: BABYLON.Mesh, rad:number) {
-        // const y = object.position.y;
-        // const z = object.position.z;
-        // const quaternion = new THREE.Quaternion();
-        // quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), rad);
-        // object.quaternion.premultiply(quaternion);
-        // object.position.y = Math.cos(rad) * y - Math.sin(rad) * z;
-        // object.position.z = Math.cos(rad) * z + Math.sin(rad) * y;
-    }
-
-    // rotation around Y axis
-    private _rotateAroundAxisY(object: BABYLON.Mesh, rad:number) {
-        // const x = object.position.x;
-        // const z = object.position.z;
-        // const quaternion = new BABYLON.Quaternion();
-        // quaternion.set(0 , -1, 0, rad);
-        // object
-        // object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
-        // object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
-    }
-
-    // rotation around Z axis
-    private _rotateAroundAxisZ(object: BABYLON.Mesh, rad:number) {
-        // const x = object.position.x;
-        // const y = object.position.y;
-        //
-        // const quaternion = new BABYLON.Quaternion();
-        // quaternion.set()
-        // quaternion.setFromAxisAngle(new BABYLON.Vector3(0, 0, 1), rad);
-        // object.quaternion.premultiply(quaternion);
-        // object.position.x = Math.cos(rad) * x - Math.sin(rad) * y;
-        // object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
-    }
-
-
-    // animate the rotate
-    // during : ms
-    private _anmate(during: number | 500, animating: (ratio:number)=>void) {
-        requestAnimationFrame((timestamp:number)=>{
-            this._animationCore(during, timestamp, timestamp, timestamp, animating);
-        });
-    }
-
-    // the animate core function
-    private _animationCore(during:number, startTimestamp:number, previousTimestamp:number,currentTimestamp:number, animating: (ratio:number)=>void) {
-        // check if diff bigger than during, and correct the timestamp
-        const correction = currentTimestamp - startTimestamp >= during ?(startTimestamp + during) : currentTimestamp;
-
-        // get the diff of contiguous frames
-        const diff = correction - previousTimestamp;
-
-        // run the animating clouse
-        animating(diff / during);
-
-        // run animation frame
-        const handler = requestAnimationFrame((timestamp:number) => {
-            this._animationCore(during, startTimestamp, currentTimestamp, timestamp, animating);
-        });
-
-        // diff is current timestamp - start timestamp
-        // check if diff bigger than during
-        if (currentTimestamp - startTimestamp >= during) {
-            cancelAnimationFrame(handler);
-            this._didFinish = true;
         }
     }
 
@@ -394,12 +343,80 @@ export class RubiksCubeViewer {
         return new BABYLON.Texture(canvas.toDataURL(), this.scene);
     }
 
+    // rotation core function by using high level function
+    private _rotate(filter:(value: BABYLON.Mesh) => boolean, rotation:(value: BABYLON.Mesh, ratio:number)=>void) {
+        // test if current animation do finish;
+        if (!this._didFinish) {
+            return;
+        }
+        // start next animation.
+        this._didFinish = false;
+
+        const objects = this.cubes.filter(filter);
+        this._anmate(500, (ratio:number) => {
+            for (const object of objects) {
+                rotation(object, ratio);
+            }
+        });
+    }
+
+    // rotation around X axis
+    private static _rotateAroundAxisX(object: BABYLON.Mesh, rad:number) {
+        const y = object.position.y;
+        const z = object.position.z;
+        object.rotation.x += rad;
+        object.position.y = Math.cos(rad) * y - Math.sin(rad) * z;
+        object.position.z = Math.cos(rad) * z + Math.sin(rad) * y;
+    }
+
+    // rotation around Y axis
+    private static _rotateAroundAxisY(object: BABYLON.Mesh, rad:number) {
+        const x = object.position.x;
+        const z = object.position.z;
+        object.rotation.y -= rad;
+        object.position.x = Math.cos(rad) * x - Math.sin(rad) * z;
+        object.position.z = Math.cos(rad) * z + Math.sin(rad) * x;
+    }
+
+    // rotation around Z axis
+    private static _rotateAroundAxisZ(object: BABYLON.Mesh, rad:number) {
+        const x = object.position.x;
+        const y = object.position.y;
+        object.rotation.z += rad;
+        object.position.x = Math.cos(rad) * x - Math.sin(rad) * y;
+        object.position.y = Math.cos(rad) * y + Math.sin(rad) * x;
+    }
 
 
-    // getter & setter
+    // animate the rotate
+    // during : ms
+    private _anmate(during: number | 500, animating: (ratio:number)=>void) {
+        requestAnimationFrame((timestamp:number) => {
+            this._animationCore(during, timestamp, timestamp, timestamp, animating);
+        });
+    }
 
+    // the animate core function
+    private _animationCore(during:number, startTimestamp:number, previousTimestamp:number,currentTimestamp:number, animating: (ratio:number)=>void) {
+        // check if diff bigger than during, and correct the timestamp
+        const correction = currentTimestamp - startTimestamp >= during ?(startTimestamp + during) : currentTimestamp;
 
-    private resizeFn = () => {
-        this.engine.resize();
+        // get the diff of contiguous frames
+        const diff = correction - previousTimestamp;
+
+        // run the animating clouse
+        animating(diff / during);
+
+        // run animation frame
+        const handler = requestAnimationFrame((timestamp:number) => {
+            this._animationCore(during, startTimestamp, currentTimestamp, timestamp, animating);
+        });
+
+        // diff is current timestamp - start timestamp
+        // check if diff bigger than during
+        if (currentTimestamp - startTimestamp >= during) {
+            cancelAnimationFrame(handler);
+            this._didFinish = true;
+        }
     }
 }
