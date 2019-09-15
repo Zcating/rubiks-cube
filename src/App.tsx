@@ -4,7 +4,11 @@ import './App.css';
 // import {Slider} from "@material-ui/core";
 
 
-class App extends React.Component<{}, any> {
+interface AppState {
+    steps: string;
+}
+
+class App extends React.Component<{}, AppState> {
 
     public viewer!: RubiksCubeViewer;
 
@@ -47,11 +51,12 @@ class App extends React.Component<{}, any> {
     }
 
     public render() {
+        const stepsView = this.state.steps ? (<div id="steps-content">{this.state.steps}</div>) : null;
         return (
         <div className="App">
-            <div id="cube-container" className="CubeContainer"/>
-            <div id="steps-content">{this.state.steps}</div>
-            <footer className="CubeButtons">
+            <div id="cube-container" className="cube-container"/>
+            {stepsView}
+            <footer className="cube-buttons">
                 <button onClick={this.disrupt}>25 STEP DISRUPT</button>
                 <button onClick={this.rotateFront}>F</button>
                 <button onClick={this.rotateUp}>U</button>
@@ -88,11 +93,48 @@ class App extends React.Component<{}, any> {
     private disrupt = () => {
         let steps = '';
         const operationQueue = [];
+        let prevStep = '';
+
         for (let index = 0; index < 25; index++) {
-            const number = (Math.floor(100 * Math.random())) % 24;
+            const operationIndex = this.allOperations.findIndex(value => value === prevStep);
+            let number = 0;
+            if (operationIndex === -1) {
+                number = (Math.floor(100 * Math.random())) % 24;
+            } else if (operationIndex < 4) {
+                while (number < 4) {
+                   number = (Math.floor(100 * Math.random())) % 24;
+                   console.log(4, number);
+                }
+            } else if (operationIndex < 8) {
+                while (number > 3 && number < 8) {
+                    number = (Math.floor(100 * Math.random())) % 24;
+                    console.log(8, number);
+                }
+            } else if (operationIndex < 12) {
+                while (number > 7 && number < 12) {
+                    number = (Math.floor(100 * Math.random())) % 24;
+                    console.log(12, number);
+                }
+            } else if (operationIndex < 16) {
+                while (number > 11 && number < 16) {
+                    number = (Math.floor(100 * Math.random())) % 24;
+                    console.log(16, number);
+                }
+            } else if (operationIndex < 20) {
+                while (number > 15 && number < 20) {
+                    number = (Math.floor(100 * Math.random())) % 24;
+                    console.log(20, number);
+                }
+            } else if (operationIndex < 24) {
+                while (number > 19 && number < 24) {
+                    number = (Math.floor(100 * Math.random())) % 24;
+                    console.log(24, number);
+                }
+            }
             const operation = this.allOperations[number];
             operationQueue.push(this.allOperations[number]);
             steps += operation + ' ';
+            prevStep = operation;
         }
         this.setState({steps});
         this.viewer.startAOperationQueue(operationQueue);
